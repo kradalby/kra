@@ -106,7 +106,7 @@
         cfg = config.services.krapage;
       in {
         options = with lib; {
-          services.krapagepage = {
+          services.krapage = {
             enable = mkEnableOption "Enable krapage";
 
             package = mkOption {
