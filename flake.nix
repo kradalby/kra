@@ -72,7 +72,7 @@
             (writeShellScriptBin
               "kradev"
               ''
-                ls *.go | entr -r krarun
+                fd .go | entr -r krarun
               '')
           ]
           ++ devDeps;
