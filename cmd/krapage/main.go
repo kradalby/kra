@@ -50,10 +50,10 @@ var (
 	)
 )
 
-func handler() http.Handler {
+func handler(page string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(html.Page().Render()))
+		w.Write([]byte(page))
 	})
 }
 
@@ -79,7 +79,8 @@ func main() {
 	fs := http.FileServer(staticFS)
 	k.Handle("/static/", fs)
 
-	k.Handle("/", handler())
+	k.Handle("/", handler(html.Home().Render()))
+	k.Handle("/about", handler(html.About().Render()))
 
 	log.Fatalf("Failed to serve %s", k.ListenAndServe())
 }
