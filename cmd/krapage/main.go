@@ -81,6 +81,7 @@ func main() {
 
 	k.Handle("/", handler(html.Home().Render()))
 	k.Handle("/about", handler(html.About().Render()))
+	k.Handle("/salary", handler(html.Salary().Render()))
 
 	log.Fatalf("Failed to serve %s", k.ListenAndServe())
 }
