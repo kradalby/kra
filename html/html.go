@@ -2,10 +2,13 @@ package html
 
 import (
 	"fmt"
+	"log"
 	"time"
 
+	"github.com/chasefleming/elem-go"
 	h "github.com/chasefleming/elem-go" //nolint
 	a "github.com/chasefleming/elem-go/attrs"
+	"github.com/kradalby/kra/data"
 )
 
 var (
@@ -19,6 +22,7 @@ func Link(href, text string) *h.Element {
 		h.Text(text),
 	)
 }
+
 func LinkElem(href string, elem *h.Element) *h.Element {
 	return h.A(
 		a.Props{a.Href: href},
@@ -57,12 +61,12 @@ func Bootstrap(title string, props a.Props, children ...h.Node) *h.Element {
 
 func Base(title string, children ...h.Node) *h.Element {
 	main := append([]h.Node{
-			h.Header(nil,
-				h.If(title != "",
-					h.H1(nil, h.Text(fmt.Sprintf("%s - kradalby.no", title))),
-					h.H1(nil, h.Text("kradalby.no")),
-				),
+		h.Header(nil,
+			h.If(title != "",
+				h.H1(nil, h.Text(fmt.Sprintf("%s - kradalby.no", title))),
+				h.H1(nil, h.Text("kradalby.no")),
 			),
+		),
 	}, children...)
 	return Bootstrap(title,
 		nil,
@@ -111,9 +115,9 @@ func Home() *h.Element {
 		Gravatar(400),
 		h.P(nil,
 			h.Text("Software engineer at "),
-			Link("https://tailscale.com","Tailscale"),
+			Link("https://tailscale.com", "Tailscale"),
 			h.Text(" and maintainer of "),
-			Link("https://github.com/juanfont/headscale","Headscale"),
+			Link("https://github.com/juanfont/headscale", "Headscale"),
 		),
 		h.P(nil,
 			h.Text("Travelling, bouldering, cooking, photography."),
@@ -130,35 +134,145 @@ func About() *h.Element {
 	return Base(
 		"About me",
 		h.H3(nil, h.Text("Hi, I am Kristoffer")),
-		h.P(nil, h.Text("I am Software engineer from Norway, currently living in Leiden, The Netherlands and slowly travelling the world.")),
+		h.P(
+			nil,
+			h.Text(
+				"I am Software engineer from Norway, currently living in Leiden, The Netherlands and slowly travelling the world.",
+			),
+		),
 		h.P(nil,
 			h.Text("I work as a Member of Technical Staff at "),
-			Link("https://tailscale.com","Tailscale"),
+			Link("https://tailscale.com", "Tailscale"),
 			h.Text(" where I work on both Tailscale and "),
-			Link("https://github.com/juanfont/headscale","Headscale"),
+			Link("https://github.com/juanfont/headscale", "Headscale"),
 			h.Text(", an open source, self-hosted version of the Tailscale control server."),
 		),
-		h.P(nil,
+		h.P(
+			nil,
 			h.Text("I have a Master in Informatics from "),
-			Link("https://www.ntnu.edu","Norwegian University of Science and Technology"),
-			h.Text(". After finishing my master, I moved abroad to participate in a two year Young Graduate Trainee program at the "),
-			Link("https://esa.int","European Space Agency"),
+			Link("https://www.ntnu.edu", "Norwegian University of Science and Technology"),
+			h.Text(
+				". After finishing my master, I moved abroad to participate in a two year Young Graduate Trainee program at the ",
+			),
+			Link("https://esa.int", "European Space Agency"),
 			h.Text("."),
 		),
-		h.P(nil, h.Text("Outside of work, I am a passionate traveller, amateur boulderer and sometimes I dabbles in photography and cooking.")),
+		h.P(
+			nil,
+			h.Text(
+				"Outside of work, I am a passionate traveller, amateur boulderer and sometimes I dabbles in photography and cooking.",
+			),
+		),
 		Gravatar(400),
 		h.H2(nil, h.Text("Public speaking")),
-		h.P(nil, h.Text("I have done some public speaking, here is a list of publicly available talks:")),
+		h.P(
+			nil,
+			h.Text("I have done some public speaking, here is a list of publicly available talks:"),
+		),
 		h.Ul(nil,
-			h.Li(nil,
-				Link("https://fosdem.org/2023/schedule/event/goheadscale/","Headscale: How we are using integration testing to reimplement Tailscale [FOSDEM 2023, Brussels]"),
+			h.Li(
+				nil,
+				Link(
+					"https://fosdem.org/2023/schedule/event/goheadscale/",
+					"Headscale: How we are using integration testing to reimplement Tailscale [FOSDEM 2023, Brussels]",
+				),
 			),
 		),
 	)
 }
 
+func Salary() *h.Element {
+	salaries, err := data.ReadSalaries()
+	if err != nil {
+		log.Fatalf("failed to read salaries: %s", err)
+	}
+
+	return Base(
+		"Salary transparency",
+		h.P(nil, h.Text("")),
+		h.P(
+			nil,
+			h.Text(
+				"Pay discrimination is a huge problem and different gaps are continuously growing larger. Publicly available data is one of the ways we can empower people to close these gaps by knowing their worth when they come to the negotiation table. People seem to often come to the table with an expectation, that is lower than their actually worth, based on things like lack of salary transparency, imposter syndrom and stigmatising talking and asking for salary.",
+			),
+		),
+		h.P(
+			nil,
+			h.Text(
+				"Companies will rarely and gladly offer a fair salary based on an employees worth based on their peers if they do not ask for it.",
+			),
+		),
+		h.H2(nil, h.Text("Ethos")),
+		h.P(
+			nil,
+			h.Text(
+				"I believe that the only entity that benefits from hidden salaries are employers/companies. Not employees.",
+			),
+		),
+		h.H2(nil, h.Text("Data")),
+		h.P(
+			nil,
+			h.Text(
+				"This data is compiled from contracts, payslips and memory, it might not be 100% accurate, but sufficient to show the general idea. These salaries are spread across multiple countries, currencies and different pay models (fixed/bonus/equity) and might not show an easy to compare picture.",
+			),
+		),
+		h.P(
+			nil,
+			h.Text(
+				"Company information has intentionally been omitted and if there were information that would have been sensitive, it has been removed.",
+			),
+		),
+
+		h.Table(nil,
+			h.THead(nil,
+				h.Tr(nil,
+					h.Th(nil, h.Text("Title")),
+					h.Th(nil, h.Text("Start date")),
+					h.Th(nil, h.Text("End date")),
+					h.Th(nil, h.Text("How I left")),
+					h.Th(nil, h.Text("Salary")),
+					h.Th(nil, h.Text("Note")),
+				),
+			),
+			h.TBody(nil,
+				SalaryRows(salaries)...,
+			),
+		),
+		h.P(nil, h.Text("I aim to update this when typically change events happens like:")),
+		h.Ul(nil,
+			h.Li(nil, h.Text("I leave a job")),
+			h.Li(nil, h.Text("My title or level changes")),
+			h.Li(nil, h.Text("I get a raise")),
+			h.Li(nil, h.Text("I am let go")),
+		),
+		h.H2(nil, h.Text("Contributing")),
+		h.P(
+			nil,
+			h.Text(
+				"The best way to help out is to join in and publish your salary information, that way more people get more knowledge and we can remove even more of the stigma related to salaries and make sure people are treated fairly.",
+			),
+		),
+	)
+}
+
+func SalaryRows(items data.Salaries) []elem.Node {
+	return h.TransformEach(items, func(sal data.Salary) h.Node {
+		return h.Tr(nil,
+			h.Td(nil, h.Text(sal.Title)),
+			h.Td(nil, h.Text(sal.StartDate)),
+			h.Td(nil, h.Text(sal.EndDate)),
+			h.Td(nil, h.Text(sal.HowILeft)),
+			h.Td(nil, h.Text(sal.Salary)),
+			h.Td(nil, h.Text(sal.Note)),
+		)
+	})
+}
+
 func Gravatar(size int) *h.Element {
-	url := fmt.Sprintf("https://gravatar.com/avatar/e77f306a388b9463ad2310c8f041d42a?s=%d&d=robohash&r=x", size)
+	url := fmt.Sprintf(
+		"https://gravatar.com/avatar/e77f306a388b9463ad2310c8f041d42a?s=%d&d=robohash&r=x",
+		size,
+	)
 
 	return h.Img(
 		a.Props{
