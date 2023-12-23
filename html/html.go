@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/chasefleming/elem-go"
 	h "github.com/chasefleming/elem-go" //nolint
 	a "github.com/chasefleming/elem-go/attrs"
 	"github.com/kradalby/kra/data"
@@ -50,6 +49,11 @@ func Bootstrap(title string, props a.Props, children ...h.Node) *h.Element {
 			// 	a.Rel:  "stylesheet",
 			// 	a.Href: "static/tailwind.css",
 			// }),
+			h.Script(a.Props{
+				a.Src:             "https://umami.kradalby.no/script.js",
+				a.Async:           "true",
+				"data-website-id": "a3ba0493-127b-4de7-a889-f029c9ef5726",
+			}),
 		),
 		h.Body(props,
 			children...,
@@ -255,7 +259,7 @@ func Salary() *h.Element {
 	)
 }
 
-func SalaryRows(items data.Salaries) []elem.Node {
+func SalaryRows(items data.Salaries) []h.Node {
 	return h.TransformEach(items, func(sal data.Salary) h.Node {
 		return h.Tr(nil,
 			h.Td(nil, h.Text(sal.Title)),

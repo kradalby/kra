@@ -32,7 +32,7 @@
             ${pkgs.nodePackages.tailwindcss}/bin/tailwind --input ./input.css --output ./cmd/krapage/static/tailwind.css
           '';
 
-          vendorSha256 = "sha256-jFW9zGikeJN5hk/5soPHckcAS19PkD7ZLzr8MlDq5Sw=";
+          vendorSha256 = "sha256-99SzHg5gaSM0CdXiG63VmWB5qw2WKJ/VTwffqyZX8yg=";
         };
       };
     }
