@@ -5,7 +5,7 @@ go 1.21.1
 toolchain go1.21.3
 
 require (
-	github.com/chasefleming/elem-go v0.12.0
+	github.com/chasefleming/elem-go v0.16.0
 	github.com/prometheus/client_golang v1.17.0
 	tailscale.com v1.52.1
 )
