@@ -32,7 +32,7 @@
             ${pkgs.nodePackages.tailwindcss}/bin/tailwind --input ./input.css --output ./cmd/krapage/static/tailwind.css
           '';
 
-          vendorSha256 = "sha256-99SzHg5gaSM0CdXiG63VmWB5qw2WKJ/VTwffqyZX8yg=";
+          vendorSha256 = "sha256-xGkF95yrOTww+ji97cdJlbBigWoZ4sV+qT4OROjeMTo=";
         };
       };
     }
@@ -73,6 +73,24 @@
               "kradev"
               ''
                 fd .go | entr -r krarun
+              '')
+
+            (writeShellScriptBin
+              "nix-vendor-sri"
+              ''
+                set -eu
+                OUT=$(mktemp -d -t nar-hash-XXXXXX)
+                rm -rf "$OUT"
+                go mod vendor -o "$OUT"
+                go run tailscale.com/cmd/nardump --sri "$OUT"
+                rm -rf "$OUT"
+              '')
+
+            (writeShellScriptBin
+              "go-mod-update-all"
+              ''
+                cat go.mod | ${pkgs.silver-searcher}/bin/ag "\t" | ${pkgs.silver-searcher}/bin/ag -v indirect | ${pkgs.gawk}/bin/awk '{print $1}' | ${pkgs.findutils}/bin/xargs go get -u
+                go mod tidy
               '')
           ]
           ++ devDeps;
