@@ -32,7 +32,7 @@
             ${pkgs.nodePackages.tailwindcss}/bin/tailwind --input ./input.css --output ./cmd/krapage/static/tailwind.css
           '';
 
-          vendorSha256 = "sha256-xGkF95yrOTww+ji97cdJlbBigWoZ4sV+qT4OROjeMTo=";
+          vendorHash = "sha256-xGkF95yrOTww+ji97cdJlbBigWoZ4sV+qT4OROjeMTo=";
         };
       };
     }
@@ -45,7 +45,7 @@
       buildDeps = with pkgs; [
         git
         gnumake
-        go_1_21
+        go_1_22
       ];
       devDeps = with pkgs;
         buildDeps
