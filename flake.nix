@@ -21,7 +21,7 @@
       overlay = _: prev: let
         pkgs = nixpkgs.legacyPackages.${prev.system};
       in {
-        krapage = pkgs.buildGo121Module {
+        krapage = pkgs.buildGo122Module {
           pname = "krapage";
           version = kraVersion;
           src = pkgs.nix-gitignore.gitignoreSource [] ./.;
