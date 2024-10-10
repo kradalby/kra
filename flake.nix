@@ -21,7 +21,7 @@
       overlay = _: prev: let
         pkgs = nixpkgs.legacyPackages.${prev.system};
       in {
-        krapage = pkgs.buildGo122Module {
+        krapage = pkgs.buildGoModule {
           pname = "krapage";
           version = kraVersion;
           src = pkgs.nix-gitignore.gitignoreSource [] ./.;
@@ -32,7 +32,7 @@
             ${pkgs.nodePackages.tailwindcss}/bin/tailwind --input ./input.css --output ./cmd/krapage/static/tailwind.css
           '';
 
-          vendorHash = "sha256-xGkF95yrOTww+ji97cdJlbBigWoZ4sV+qT4OROjeMTo=";
+          vendorHash = "sha256-ic8mN4nGmIHxhEq1HRfhBx8563MsbFifd7bRBKs1LPg=";
         };
       };
     }
@@ -45,7 +45,7 @@
       buildDeps = with pkgs; [
         git
         gnumake
-        go_1_22
+        go
       ];
       devDeps = with pkgs;
         buildDeps
