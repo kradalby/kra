@@ -21,19 +21,20 @@
       overlay = _: prev: let
         pkgs = nixpkgs.legacyPackages.${prev.system};
       in {
-        krapage = pkgs.buildGoModule {
-          pname = "krapage";
-          version = kraVersion;
-          src = pkgs.nix-gitignore.gitignoreSource [] ./.;
+        krapage = pkgs.callPackage ({buildGoModule}:
+          buildGoModule {
+            pname = "krapage";
+            version = kraVersion;
+            src = pkgs.nix-gitignore.gitignoreSource [] ./.;
 
-          subPackages = ["cmd/krapage"];
+            subPackages = ["cmd/krapage"];
 
-          patchPhase = ''
-            ${pkgs.nodePackages.tailwindcss}/bin/tailwind --input ./input.css --output ./cmd/krapage/static/tailwind.css
-          '';
+            patchPhase = ''
+              ${pkgs.nodePackages.tailwindcss}/bin/tailwind --input ./input.css --output ./cmd/krapage/static/tailwind.css
+            '';
 
-          vendorHash = "sha256-ic8mN4nGmIHxhEq1HRfhBx8563MsbFifd7bRBKs1LPg=";
-        };
+            vendorHash = "sha256-ic8mN4nGmIHxhEq1HRfhBx8563MsbFifd7bRBKs1LPg=";
+          }) {};
       };
     }
     // utils.lib.eachDefaultSystem
