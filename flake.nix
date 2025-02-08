@@ -29,10 +29,6 @@
 
             subPackages = ["cmd/krapage"];
 
-            patchPhase = ''
-              ${pkgs.nodePackages.tailwindcss}/bin/tailwind --input ./input.css --output ./cmd/krapage/static/tailwind.css
-            '';
-
             vendorHash = "sha256-ic8mN4nGmIHxhEq1HRfhBx8563MsbFifd7bRBKs1LPg=";
           }) {};
       };
@@ -53,7 +49,6 @@
         ++ [
           golangci-lint
           entr
-          nodePackages.tailwindcss
         ];
     in rec {
       # `nix develop`
@@ -63,11 +58,6 @@
             (writeShellScriptBin
               "krarun"
               ''
-                # if [ ! -f ./static/tailwind.css ]
-                # then
-                    # echo "static/tailwind.css does not exist, creating..."
-                    tailwind --input ./input.css --output ./static/tailwind.css
-                # fi
                 go run ./cmd/krapage --verbose
               '')
             (writeShellScriptBin
