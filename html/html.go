@@ -45,10 +45,6 @@ func Bootstrap(title string, props a.Props, children ...Node) *Element {
 				Title(nil, Text(fmt.Sprintf("%s - kradalby.no", title))),
 				Title(nil, Text("kradalby.no")),
 			),
-			// Link(a.Props{
-			// 	a.Rel:  "stylesheet",
-			// 	a.Href: "static/tailwind.css",
-			// }),
 			Script(a.Props{
 				a.Src:             "https://umami.kradalby.no/script.js",
 				a.Async:           "true",
