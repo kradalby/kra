@@ -91,6 +91,8 @@ func NewKraWeb(
 	err := statsviz.Register(k.tsmux)
 	if err == nil {
 		k.debugHandler.URL("/debug/statsviz", "Statsviz (visualise go metrics)")
+	} else {
+		log.Printf("failed to register statsviz: %s", err)
 	}
 
 	tsSrv := &tsnet.Server{
