@@ -29,7 +29,7 @@
 
             subPackages = ["cmd/krapage"];
 
-            vendorHash = "sha256-n9hPKuMC3b+Prd8AokBU2ZqtfdqolmP83ESKfB3B2vQ=";
+            vendorHash = "sha256-D9ufdR3yZoS4MUQx7VJULk79nOEfFCEnU+/Txu2FIM4=";
           }) {};
       };
     }

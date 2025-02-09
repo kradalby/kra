@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arl/statsviz"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"tailscale.com/client/tailscale"
 	"tailscale.com/tsnet"
@@ -86,6 +87,11 @@ func NewKraWeb(
 
 	debugHandler := tsweb.Debugger(k.tsmux)
 	k.debugHandler = debugHandler
+
+	err := statsviz.Register(k.tsmux)
+	if err == nil {
+		k.debugHandler.URL("/debug/statsviz", "Statsviz (visualise go metrics)")
+	}
 
 	tsSrv := &tsnet.Server{
 		Hostname:   k.hostname,
