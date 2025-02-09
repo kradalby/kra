@@ -31,6 +31,8 @@ type KraWeb struct {
 	mux   *http.ServeMux
 	tsmux *http.ServeMux
 	tsSrv *tsnet.Server
+
+	debugHandler *tsweb.DebugHandler
 }
 
 type Option = func(c *KraWeb)
@@ -82,6 +84,9 @@ func NewKraWeb(
 	k.mux = http.NewServeMux()
 	k.tsmux = http.NewServeMux()
 
+	debugHandler := tsweb.Debugger(k.tsmux)
+	k.debugHandler = debugHandler
+
 	tsSrv := &tsnet.Server{
 		Hostname:   k.hostname,
 		Logf:       func(format string, args ...any) {},
@@ -91,6 +96,14 @@ func NewKraWeb(
 	k.tsSrv = tsSrv
 
 	return k
+}
+
+// DebugHandler returns the handler for the debug server.
+// It can be used to add additional, application specific
+// debug handlers.
+// It is only available over Tailscale, and when tsnet is enabled.
+func (k *KraWeb) DebugHandler() *tsweb.DebugHandler {
+	return k.debugHandler
 }
 
 func (k *KraWeb) Handle(pattern string, handler http.Handler) {
@@ -116,8 +129,6 @@ func (k *KraWeb) TailscaleLocalClient() *tailscale.LocalClient {
 }
 
 func (k *KraWeb) ListenAndServe() error {
-	tsweb.Debugger(k.tsmux)
-
 	log := k.logger
 
 	if k.tsKeyPath != "" {
