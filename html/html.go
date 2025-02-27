@@ -177,6 +177,20 @@ func About() *Element {
 					"Headscale: How we are using integration testing to reimplement Tailscale [FOSDEM 2023, Brussels]",
 				),
 			),
+			Li(
+				nil,
+				Alink(
+					"https://www.youtube.com/watch?v=5KmT8k4wICQ",
+					"Using Tailscale without using Tailscale [Cloud Native Rejekts 2023, Amsterdam]",
+				),
+			),
+			Li(
+				nil,
+				Alink(
+					"https://archive.fosdem.org/2024/schedule/event/fosdem-2024-3597-go-lightning-talks/",
+					"Go Lightning Talks: I am never writing HTML again (@6:25) [FOSDEM 2024, Brussels]",
+				),
+			),
 		),
 	)
 }
