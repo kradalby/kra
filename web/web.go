@@ -163,10 +163,11 @@ func (k *KraWeb) ListenAndServe() error {
 		k.tsmux.Handle("/who", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			who, err := localClient.WhoIs(r.Context(), r.RemoteAddr)
 			if err != nil {
-				http.Error(w, err.Error(), 500)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 
 				return
 			}
+
 			fmt.Fprintf(w, "<html><body><h1>Hello, world!</h1>\n")
 			fmt.Fprintf(w, "<p>You are <b>%s</b> from <b>%s</b> (%s)</p>",
 				html.EscapeString(who.UserProfile.LoginName),
@@ -177,6 +178,7 @@ func (k *KraWeb) ListenAndServe() error {
 		k.tsmux.Handle(
 			"/quitquitquit",
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 				os.Exit(0)
 			}),
 		)
@@ -193,11 +195,13 @@ func (k *KraWeb) ListenAndServe() error {
 			if err != nil {
 				log.Printf("failed to start https server: %s", err)
 			}
+
 			ts443 = tls.NewListener(ts443, &tls.Config{
 				GetCertificate: localClient.GetCertificate,
 			})
 
 			log.Printf("Serving https://%s/ ...", k.hostname)
+
 			if err := tshttpSrv.Serve(ts443); err != nil {
 				log.Fatalf("failed to start https server in Tailscale: %s", err)
 			}
@@ -210,6 +214,7 @@ func (k *KraWeb) ListenAndServe() error {
 			}
 
 			log.Printf("Serving http://%s/ ...", k.hostname)
+
 			if err := tshttpSrv.Serve(ts80); err != nil {
 				log.Fatalf("failed to start http server in Tailscale: %s", err)
 			}
@@ -228,6 +233,7 @@ func (k *KraWeb) ListenAndServe() error {
 	}
 
 	log.Printf("Serving http://%s/ ...", k.localAddr)
+
 	if err := httpSrv.Serve(localListen); err != nil {
 		return err
 	}
@@ -237,5 +243,6 @@ func (k *KraWeb) ListenAndServe() error {
 
 func firstLabel(s string) string {
 	s, _, _ = strings.Cut(s, ".")
+
 	return s
 }
