@@ -2,55 +2,62 @@
   end_date: current
   how_i_left: N/A
   note: "options, 1 year cliff, 4 year vesting"
-  salary: "EUR 195 770 + options"
-  start_date: '2024-04-01'
+  salary: "EUR 208 370 + options"
+  start_date: "2025-05-01"
   title: Member of Technical Staff
 - company: Tailscale
-  end_date: '2024-04-01'
+  end_date: current
+  how_i_left: "merit increase"
+  note: "options, 1 year cliff, 4 year vesting"
+  salary: "EUR 195 770 + options"
+  start_date: "2024-04-01"
+  title: Member of Technical Staff
+- company: Tailscale
+  end_date: "2024-04-01"
   how_i_left: "merit increase"
   note: "options, 1 year cliff, 4 year vesting"
   salary: "EUR 188 240 + options"
-  start_date: '2022-09-06'
+  start_date: "2022-09-06"
   title: Member of Technical Staff
 - company: G-Research
-  end_date: '2022-08-11'
+  end_date: "2022-08-11"
   how_i_left: quit
   note: bonus is for 2021
   salary: "GBP 110 000 + GBP 60 000 (Bonus)"
-  start_date: '2022-01-01'
+  start_date: "2022-01-01"
   title: Site Reliability Engineer - Engineer II
 - company: G-Research
-  end_date: '2021-12-31'
+  end_date: "2021-12-31"
   how_i_left: raise
   note: bonus is for 2020
   salary: "GBP 90 000 + GBP 33 000 (Bonus)"
-  start_date: '2021-01-01'
+  start_date: "2021-01-01"
   title: Site Reliability Engineer - Engineer I
 - company: G-Research
-  end_date: '2020-12-31'
+  end_date: "2020-12-31"
   how_i_left: raise
   note: bonus is for 2019
   salary: "GBP 85 000 + GBP 7500 (Bonus)"
-  start_date: '2019-09-02'
+  start_date: "2019-09-02"
   title: Site Reliability Engineer - Engineer I
 - company: ESA
-  end_date: '2019-08-31'
+  end_date: "2019-08-31"
   how_i_left: "one + one year contract"
   note: tax exempt
   salary: EUR 2720/month
-  start_date: '2017-09-01'
+  start_date: "2017-09-01"
   title: Young Graduate Trainee
 - company: Knowit Objectnet
-  end_date: '2016-08-15'
+  end_date: "2016-08-15"
   how_i_left: end of summer
   note: "job offer, NOK 460 000"
   salary: NOK 225/hour
-  start_date: '2016-06-01'
+  start_date: "2016-06-01"
   title: Summer job
 - company: Uninett Sigma 2
-  end_date: '2015-08-31'
+  end_date: "2015-08-31"
   how_i_left: end of summer
-  note: ''
+  note: ""
   salary: NOK 185/hour
-  start_date: '2015-06-26'
+  start_date: "2015-06-26"
   title: Summer job
