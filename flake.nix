@@ -22,14 +22,14 @@
         pkgs = nixpkgs.legacyPackages.${prev.system};
       in {
         krapage = pkgs.callPackage ({buildGoModule}:
-          buildGoModule {
+          buildGoModule.override { go = pkgs.go_1_25; } {
             pname = "krapage";
             version = kraVersion;
             src = pkgs.nix-gitignore.gitignoreSource [] ./.;
 
             subPackages = ["cmd/krapage"];
 
-            vendorHash = "sha256-D9ufdR3yZoS4MUQx7VJULk79nOEfFCEnU+/Txu2FIM4=";
+            vendorHash = "sha256-ToRfiZ3iE4OHG17oe3ARsGUQtPPXrd7XL+s2+B2moTw=";
           }) {};
       };
     }
@@ -42,7 +42,7 @@
       buildDeps = with pkgs; [
         git
         gnumake
-        go
+        go_1_25
       ];
       devDeps = with pkgs;
         buildDeps
