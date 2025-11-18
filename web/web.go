@@ -1,10 +1,13 @@
 package web
 
 import (
+	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"html"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -22,12 +25,14 @@ type KraWeb struct {
 	// hostname is the name that will be used when joining Tailscale
 	hostname  string
 	tsKeyPath string
+	authKey   string
 	localAddr string
 
 	controlURL string
 	verbose    bool
-	logger     *log.Logger
-	noTS       bool
+	logger     *slog.Logger
+	stdLogger  *log.Logger
+	enableTS   bool
 
 	mux   *http.ServeMux
 	tsmux *http.ServeMux
@@ -50,15 +55,27 @@ func WithVerbose(b bool) Option {
 	}
 }
 
-func WithLogger(l *log.Logger) Option {
+func WithLogger(l *slog.Logger) Option {
 	return func(kw *KraWeb) {
 		kw.logger = l
 	}
 }
 
+func WithStdLogger(l *log.Logger) Option {
+	return func(kw *KraWeb) {
+		kw.stdLogger = l
+	}
+}
+
 func WithTailscale(b bool) Option {
 	return func(kw *KraWeb) {
-		kw.noTS = b
+		kw.enableTS = b
+	}
+}
+
+func WithAuthKey(key string) Option {
+	return func(kw *KraWeb) {
+		kw.authKey = key
 	}
 }
 
@@ -74,8 +91,9 @@ func NewKraWeb(
 		localAddr:  localAddr,
 		controlURL: "",
 		verbose:    false,
-		logger:     nil,
-		noTS:       false,
+		logger:     slog.Default(),
+		stdLogger:  log.Default(),
+		enableTS:   false,
 	}
 
 	for _, opt := range opts {
@@ -88,11 +106,10 @@ func NewKraWeb(
 	debugHandler := tsweb.Debugger(k.tsmux)
 	k.debugHandler = debugHandler
 
-	err := statsviz.Register(k.tsmux)
-	if err == nil {
+	if err := statsviz.Register(k.tsmux); err == nil {
 		k.debugHandler.URL("/debug/statsviz", "Statsviz (visualise go metrics)")
 	} else {
-		log.Printf("failed to register statsviz: %s", err)
+		k.logger.Warn("failed to register statsviz", slog.Any("error", err))
 	}
 
 	tsSrv := &tsnet.Server{
@@ -136,28 +153,36 @@ func (k *KraWeb) TailscaleLocalClient() *tailscale.LocalClient {
 	return localClient
 }
 
-func (k *KraWeb) ListenAndServe() error {
-	log := k.logger
+func (k *KraWeb) ListenAndServe(ctx context.Context) error {
+	logger := k.logger
 
-	if k.tsKeyPath != "" {
+	switch {
+	case k.authKey != "":
+		k.tsSrv.AuthKey = strings.TrimSpace(k.authKey)
+	case k.tsKeyPath != "":
 		key, err := os.ReadFile(k.tsKeyPath)
 		if err != nil {
 			return err
 		}
 
-		k.tsSrv.AuthKey = strings.TrimSuffix(string(key), "\n")
+		k.tsSrv.AuthKey = strings.TrimSpace(string(key))
 	}
 
-	if k.verbose {
-		k.tsSrv.Logf = log.Printf
+	if k.verbose && logger != nil {
+		k.tsSrv.Logf = func(format string, args ...any) {
+			logger.Info(fmt.Sprintf(format, args...))
+		}
 	}
 
-	if k.noTS {
+	if k.enableTS {
 		if err := k.tsSrv.Start(); err != nil {
 			return err
 		}
 
-		localClient, _ := k.tsSrv.LocalClient()
+		localClient, err := k.tsSrv.LocalClient()
+		if err != nil {
+			return err
+		}
 
 		k.tsmux.Handle("/metrics", promhttp.Handler())
 		k.tsmux.Handle("/who", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -185,45 +210,60 @@ func (k *KraWeb) ListenAndServe() error {
 
 		tshttpSrv := &http.Server{
 			Handler:     k.tsmux,
-			ErrorLog:    k.logger,
+			ErrorLog:    k.stdLogger,
 			ReadTimeout: 5 * time.Minute,
+			Addr:        ":80",
 		}
+
+		go func() {
+			<-ctx.Done()
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := tshttpSrv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Warn("tailscale http shutdown error", slog.Any("error", err))
+			}
+			if err := k.tsSrv.Close(); err != nil {
+				logger.Warn("tailscale server shutdown error", slog.Any("error", err))
+			}
+		}()
 
 		// Starting HTTPS server
 		go func() {
 			ts443, err := k.tsSrv.Listen("tcp", ":443")
 			if err != nil {
-				log.Printf("failed to start https server: %s", err)
+				logger.Error("failed to start https server", slog.Any("error", err))
+				return
 			}
 
 			ts443 = tls.NewListener(ts443, &tls.Config{
 				GetCertificate: localClient.GetCertificate,
 			})
 
-			log.Printf("Serving https://%s/ ...", k.hostname)
+			logger.Info("Serving https via Tailscale", slog.String("hostname", k.hostname))
 
-			if err := tshttpSrv.Serve(ts443); err != nil {
-				log.Fatalf("failed to start https server in Tailscale: %s", err)
+			if err := tshttpSrv.Serve(ts443); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Error("failed to start https server in Tailscale", slog.Any("error", err))
 			}
 		}()
 
 		go func() {
 			ts80, err := k.tsSrv.Listen("tcp", ":80")
 			if err != nil {
-				log.Printf("failed to start http server: %s", err)
+				logger.Error("failed to start http server", slog.Any("error", err))
+				return
 			}
 
-			log.Printf("Serving http://%s/ ...", k.hostname)
+			logger.Info("Serving http via Tailscale", slog.String("hostname", k.hostname))
 
-			if err := tshttpSrv.Serve(ts80); err != nil {
-				log.Fatalf("failed to start http server in Tailscale: %s", err)
+			if err := tshttpSrv.Serve(ts80); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Error("failed to start http server in Tailscale", slog.Any("error", err))
 			}
 		}()
 	}
 
 	httpSrv := &http.Server{
 		Handler:     k.mux,
-		ErrorLog:    k.logger,
+		ErrorLog:    k.stdLogger,
 		ReadTimeout: 5 * time.Minute,
 	}
 
@@ -232,9 +272,14 @@ func (k *KraWeb) ListenAndServe() error {
 		return err
 	}
 
-	log.Printf("Serving http://%s/ ...", k.localAddr)
+	logger.Info("Serving local HTTP", slog.String("addr", k.localAddr))
 
-	if err := httpSrv.Serve(localListen); err != nil {
+	go func() {
+		<-ctx.Done()
+		_ = httpSrv.Shutdown(context.Background())
+	}()
+
+	if err := httpSrv.Serve(localListen); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
