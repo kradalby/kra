@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -63,7 +65,8 @@ var staticAssets embed.FS
 func main() {
 	flag.Parse()
 
-	logger := log.New(os.Stdout, "hvor: ", log.LstdFlags)
+	textLogger := log.New(os.Stdout, "hvor: ", log.LstdFlags)
+	slogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	k := web.NewKraWeb(
 		*hostname,
@@ -71,7 +74,8 @@ func main() {
 		*localAddr,
 		web.WithVerbose(*verbose),
 		web.WithControlURL(*controlURL),
-		web.WithLogger(logger),
+		web.WithStdLogger(textLogger),
+		web.WithLogger(slogger),
 		web.WithTailscale(!*dev),
 	)
 
@@ -83,5 +87,5 @@ func main() {
 	k.Handle("/about", handler(html.About().Render()))
 	k.Handle("/salary", handler(html.Salary().Render()))
 
-	log.Fatalf("Failed to serve %s", k.ListenAndServe())
+	log.Fatalf("Failed to serve %s", k.ListenAndServe(context.Background()))
 }
