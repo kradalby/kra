@@ -23,10 +23,11 @@ import (
 
 type KraWeb struct {
 	// hostname is the name that will be used when joining Tailscale
-	hostname  string
-	tsKeyPath string
-	authKey   string
-	localAddr string
+	hostname   string
+	tsKeyPath  string
+	authKey    string
+	localAddr  string
+	tsStateDir string
 
 	controlURL string
 	verbose    bool
@@ -73,6 +74,12 @@ func WithTailscale(b bool) Option {
 	}
 }
 
+func WithTailscaleStateDir(dir string) Option {
+	return func(kw *KraWeb) {
+		kw.tsStateDir = dir
+	}
+}
+
 func WithAuthKey(key string) Option {
 	return func(kw *KraWeb) {
 		kw.authKey = key
@@ -116,6 +123,7 @@ func NewKraWeb(
 		Hostname:   k.hostname,
 		Logf:       func(format string, args ...any) {},
 		ControlURL: k.controlURL,
+		Dir:        k.tsStateDir,
 	}
 
 	k.tsSrv = tsSrv
