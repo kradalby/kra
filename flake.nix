@@ -18,14 +18,12 @@
       else "dev";
   in
     {
-      overlay = _: prev: let
-        pkgs = nixpkgs.legacyPackages.${prev.system};
-      in {
-        krapage = pkgs.callPackage ({buildGoModule}:
-          buildGoModule.override { go = pkgs.go_1_25; } {
+      overlay = _: prev: {
+        krapage = prev.callPackage ({buildGoModule}:
+          buildGoModule {
             pname = "krapage";
             version = kraVersion;
-            src = pkgs.nix-gitignore.gitignoreSource [] ./.;
+            src = prev.nix-gitignore.gitignoreSource [] ./.;
 
             subPackages = ["cmd/krapage"];
 
