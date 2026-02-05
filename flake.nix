@@ -18,12 +18,14 @@
       else "dev";
   in
     {
-      overlay = _: prev: {
-        krapage = prev.callPackage ({buildGoModule}:
-          buildGoModule {
+      overlays.default = _: prev: let
+        pkgs = nixpkgs.legacyPackages.${prev.stdenv.hostPlatform.system};
+      in {
+        krapage = pkgs.callPackage ({buildGoModule}:
+          buildGoModule.override { go = pkgs.go_1_25; } {
             pname = "krapage";
             version = kraVersion;
-            src = prev.nix-gitignore.gitignoreSource [] ./.;
+            src = pkgs.nix-gitignore.gitignoreSource [] ./.;
 
             subPackages = ["cmd/krapage"];
 
@@ -34,7 +36,7 @@
     // utils.lib.eachDefaultSystem
     (system: let
       pkgs = import nixpkgs {
-        overlays = [self.overlay];
+        overlays = [self.overlays.default];
         inherit system;
       };
       buildDeps = with pkgs; [
@@ -48,9 +50,9 @@
           golangci-lint
           entr
         ];
-    in rec {
+    in {
       # `nix develop`
-      devShell = pkgs.mkShell {
+      devShells.default = pkgs.mkShell {
         buildInputs = with pkgs;
           [
             (writeShellScriptBin
@@ -88,20 +90,18 @@
       # `nix build`
       packages = with pkgs; {
         inherit krapage;
+        default = krapage;
       };
-
-      defaultPackage = pkgs.krapage;
 
       # `nix run`
       apps = {
         krapage = utils.lib.mkApp {
-          drv = packages.krapage;
+          drv = pkgs.krapage;
+        };
+        default = utils.lib.mkApp {
+          drv = pkgs.krapage;
         };
       };
-
-      defaultApp = apps.krapage;
-
-      overlays.default = self.overlay;
     })
     // {
       nixosModules.default = {
