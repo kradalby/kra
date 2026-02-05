@@ -199,8 +199,15 @@ func About() *elem.Element {
 			elem.Li(
 				nil,
 				Alink(
-					"https://fosdem.org/2023/schedule/event/goheadscale/",
-					"Headscale: How we are using integration testing to reimplement Tailscale [FOSDEM 2023, Brussels]",
+					"https://fosdem.org/2026/schedule/event/KYQ3LL-headscale-the-complementary-open-source-clone/",
+					"Headscale & Tailscale: The complementary open source clone [FOSDEM 2026, Brussels]",
+				),
+			),
+			elem.Li(
+				nil,
+				Alink(
+					"https://archive.fosdem.org/2024/schedule/event/fosdem-2024-3597-go-lightning-talks/",
+					"Go Lightning Talks: I am never writing HTML again (@6:25) [FOSDEM 2024, Brussels]",
 				),
 			),
 			elem.Li(
@@ -213,8 +220,8 @@ func About() *elem.Element {
 			elem.Li(
 				nil,
 				Alink(
-					"https://archive.fosdem.org/2024/schedule/event/fosdem-2024-3597-go-lightning-talks/",
-					"Go Lightning Talks: I am never writing HTML again (@6:25) [FOSDEM 2024, Brussels]",
+					"https://fosdem.org/2023/schedule/event/goheadscale/",
+					"Headscale: How we are using integration testing to reimplement Tailscale [FOSDEM 2023, Brussels]",
 				),
 			),
 		),
