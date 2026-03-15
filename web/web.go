@@ -110,23 +110,23 @@ func NewKraWeb(
 	k.mux = http.NewServeMux()
 	k.tsmux = http.NewServeMux()
 
-	debugHandler := tsweb.Debugger(k.tsmux)
-	k.debugHandler = debugHandler
+	if k.enableTS {
+		debugHandler := tsweb.Debugger(k.tsmux)
+		k.debugHandler = debugHandler
 
-	if err := statsviz.Register(k.tsmux); err == nil {
-		k.debugHandler.URL("/debug/statsviz", "Statsviz (visualise go metrics)")
-	} else {
-		k.logger.Warn("failed to register statsviz", slog.Any("error", err))
+		if err := statsviz.Register(k.tsmux); err == nil {
+			k.debugHandler.URL("/debug/statsviz", "Statsviz (visualise go metrics)")
+		} else {
+			k.logger.Warn("failed to register statsviz", slog.Any("error", err))
+		}
+
+		k.tsSrv = &tsnet.Server{
+			Hostname:   k.hostname,
+			Logf:       func(format string, args ...any) {},
+			ControlURL: k.controlURL,
+			Dir:        k.tsStateDir,
+		}
 	}
-
-	tsSrv := &tsnet.Server{
-		Hostname:   k.hostname,
-		Logf:       func(format string, args ...any) {},
-		ControlURL: k.controlURL,
-		Dir:        k.tsStateDir,
-	}
-
-	k.tsSrv = tsSrv
 
 	return k
 }
@@ -142,6 +142,10 @@ func (k *KraWeb) DebugHandler() *tsweb.DebugHandler {
 func (k *KraWeb) Handle(pattern string, handler http.Handler) {
 	k.mux.Handle(pattern, handler)
 	k.tsmux.Handle(pattern, handler)
+}
+
+func (k *KraWeb) HandleFunc(pattern string, handler http.HandlerFunc) {
+	k.Handle(pattern, handler)
 }
 
 func (k *KraWeb) HandleTSOnly(pattern string, handler http.Handler) {
@@ -164,25 +168,25 @@ func (k *KraWeb) TailscaleLocalClient() *tailscale.LocalClient {
 func (k *KraWeb) ListenAndServe(ctx context.Context) error {
 	logger := k.logger
 
-	switch {
-	case k.authKey != "":
-		k.tsSrv.AuthKey = strings.TrimSpace(k.authKey)
-	case k.tsKeyPath != "":
-		key, err := os.ReadFile(k.tsKeyPath)
-		if err != nil {
-			return err
-		}
-
-		k.tsSrv.AuthKey = strings.TrimSpace(string(key))
-	}
-
-	if k.verbose && logger != nil {
-		k.tsSrv.Logf = func(format string, args ...any) {
-			logger.Info(fmt.Sprintf(format, args...))
-		}
-	}
-
 	if k.enableTS {
+		switch {
+		case k.authKey != "":
+			k.tsSrv.AuthKey = strings.TrimSpace(k.authKey)
+		case k.tsKeyPath != "":
+			key, err := os.ReadFile(k.tsKeyPath)
+			if err != nil {
+				return err
+			}
+
+			k.tsSrv.AuthKey = strings.TrimSpace(string(key))
+		}
+
+		if k.verbose && logger != nil {
+			k.tsSrv.Logf = func(format string, args ...any) {
+				logger.Info(fmt.Sprintf(format, args...))
+			}
+		}
+
 		if err := k.tsSrv.Start(); err != nil {
 			return err
 		}
@@ -201,26 +205,34 @@ func (k *KraWeb) ListenAndServe(ctx context.Context) error {
 				return
 			}
 
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			fmt.Fprintf(w, "<html><body><h1>Hello, world!</h1>\n")
 			fmt.Fprintf(w, "<p>You are <b>%s</b> from <b>%s</b> (%s)</p>",
 				html.EscapeString(who.UserProfile.LoginName),
 				html.EscapeString(firstLabel(who.Node.ComputedName)),
 				r.RemoteAddr)
+			fmt.Fprintf(w, "</body></html>")
 		}))
 
 		k.tsmux.Handle(
 			"/quitquitquit",
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost {
+					http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+					return
+				}
 				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 				os.Exit(0)
 			}),
 		)
 
 		tshttpSrv := &http.Server{
-			Handler:     k.tsmux,
-			ErrorLog:    k.stdLogger,
-			ReadTimeout: 5 * time.Minute,
-			Addr:        ":80",
+			Handler:      k.tsmux,
+			ErrorLog:     k.stdLogger,
+			ReadTimeout:  5 * time.Minute,
+			WriteTimeout: 5 * time.Minute,
+			IdleTimeout:  2 * time.Minute,
+			Addr:         ":80",
 		}
 
 		go func() {
@@ -270,9 +282,11 @@ func (k *KraWeb) ListenAndServe(ctx context.Context) error {
 	}
 
 	httpSrv := &http.Server{
-		Handler:     k.mux,
-		ErrorLog:    k.stdLogger,
-		ReadTimeout: 5 * time.Minute,
+		Handler:      k.mux,
+		ErrorLog:     k.stdLogger,
+		ReadTimeout:  5 * time.Minute,
+		WriteTimeout: 5 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
 	}
 
 	localListen, err := net.Listen("tcp", k.localAddr)
@@ -284,7 +298,11 @@ func (k *KraWeb) ListenAndServe(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
-		_ = httpSrv.Shutdown(context.Background())
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := httpSrv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Warn("local http shutdown error", slog.Any("error", err))
+		}
 	}()
 
 	if err := httpSrv.Serve(localListen); err != nil && !errors.Is(err, http.ErrServerClosed) {
