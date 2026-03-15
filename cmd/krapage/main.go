@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"embed"
 	"flag"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/kradalby/kra/html"
 	"github.com/kradalby/kra/util"
@@ -54,38 +55,51 @@ var (
 
 func handler(page string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(page))
 	})
 }
 
-//go:embed all:static
-var staticAssets embed.FS
-
 func main() {
 	flag.Parse()
 
-	textLogger := log.New(os.Stdout, "hvor: ", log.LstdFlags)
 	slogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	stdLogger := slog.NewLogLogger(slogger.Handler(), slog.LevelError)
 
-	k := web.NewKraWeb(
-		*hostname,
-		*tailscaleKeyPath,
-		*localAddr,
+	k, err := web.NewServer(
+		web.ServerConfig{
+			Hostname:        *hostname,
+			LocalAddr:       *localAddr,
+			AuthKeyPath:     *tailscaleKeyPath,
+			EnableTailscale: !*dev,
+		},
 		web.WithVerbose(*verbose),
 		web.WithControlURL(*controlURL),
-		web.WithStdLogger(textLogger),
+		web.WithStdLogger(stdLogger),
 		web.WithLogger(slogger),
-		web.WithTailscale(!*dev),
 	)
-
-	staticFS := http.FS(staticAssets)
-	fs := http.FileServer(staticFS)
-	k.Handle("/static/", fs)
+	if err != nil {
+		log.Fatalf("failed to create server: %v", err)
+	}
 
 	k.Handle("/", handler(html.Home().Render()))
 	k.Handle("/about", handler(html.About().Render()))
-	k.Handle("/salary", handler(html.Salary().Render()))
 
-	log.Fatalf("Failed to serve %s", k.ListenAndServe(context.Background()))
+	salaryPage, err := html.Salary()
+	if err != nil {
+		log.Fatalf("failed to render salary page: %v", err)
+	}
+	k.Handle("/salary", handler(salaryPage.Render()))
+
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+	defer cancel()
+
+	if err := k.ListenAndServe(ctx); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
 }
