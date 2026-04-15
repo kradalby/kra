@@ -7,7 +7,7 @@ require (
 	github.com/chasefleming/elem-go v0.31.0
 	github.com/prometheus/client_golang v1.23.2
 	gopkg.in/yaml.v3 v3.0.1
-	tailscale.com v1.96.1
+	tailscale.com v1.96.5
 )
 
 require (
