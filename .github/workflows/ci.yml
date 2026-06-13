@@ -6,14 +6,13 @@ on:
   pull_request:
     branches: [main]
 
-# Every `run:` step executes inside `nix develop`, so tools (go, golangci-lint)
-# come straight from the flake devShell with no per-step prefix.
-defaults:
-  run:
-    shell: nix develop --command bash -e {0}
+# Gate jobs only call `nix build .#checks.<sys>.<name>`, so no `nix develop`
+# default shell is needed. The check logic lives in flake.nix.
+permissions:
+  contents: read
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,16 +24,25 @@ jobs:
       - name: Setup Nix cache (hestia)
         uses: Mic92/hestia/action@ff07bb902a9968ac0c3d0e51d90a606662a375d8 # main
 
-      - name: Build
-        run: go build ./...
+      - name: build
+        run: nix build -L .#checks.x86_64-linux.build
 
-      - name: Vet
-        run: go vet ./...
+  gotest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Test
-        run: go test -race -count=1 ./...
+      - name: Install Nix
+        uses: NixOS/nix-installer-action@6b8548fe06acfb0155a50ab5d561accb215764cc # main
 
-  lint:
+      - name: Setup Nix cache (hestia)
+        uses: Mic92/hestia/action@ff07bb902a9968ac0c3d0e51d90a606662a375d8 # main
+
+      - name: gotest
+        run: nix build -L .#checks.x86_64-linux.gotest
+
+  golangci-lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -47,9 +55,9 @@ jobs:
         uses: Mic92/hestia/action@ff07bb902a9968ac0c3d0e51d90a606662a375d8 # main
 
       - name: golangci-lint
-        run: golangci-lint run ./...
+        run: nix build -L .#checks.x86_64-linux.golangci-lint
 
-  nix-build:
+  formatting:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,8 +69,5 @@ jobs:
       - name: Setup Nix cache (hestia)
         uses: Mic92/hestia/action@ff07bb902a9968ac0c3d0e51d90a606662a375d8 # main
 
-      - name: Nix build
-        run: nix build
-
-      - name: Nix flake check
-        run: nix flake check
+      - name: formatting
+        run: nix build -L .#checks.x86_64-linux.formatting
