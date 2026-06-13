@@ -41,7 +41,7 @@ func TestGetEnvString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Unsetenv(tt.key)
+			_ = os.Unsetenv(tt.key)
 			if tt.setEnv {
 				t.Setenv(tt.key, tt.envVal)
 			}
@@ -138,7 +138,7 @@ func TestGetEnvBool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Unsetenv(tt.key)
+			_ = os.Unsetenv(tt.key)
 			if tt.setEnv {
 				t.Setenv(tt.key, tt.envVal)
 			}

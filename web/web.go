@@ -16,7 +16,7 @@ import (
 
 	"github.com/arl/statsviz"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"tailscale.com/client/tailscale"
+	"tailscale.com/client/tailscale" //nolint:staticcheck // SA1019: deprecated, pending migration to client/tailscale/v2
 	"tailscale.com/tsnet"
 	"tailscale.com/tsweb"
 )
@@ -152,7 +152,7 @@ func (k *KraWeb) HandleTSOnly(pattern string, handler http.Handler) {
 	k.tsmux.Handle(pattern, handler)
 }
 
-func (k *KraWeb) TailscaleLocalClient() *tailscale.LocalClient {
+func (k *KraWeb) TailscaleLocalClient() *tailscale.LocalClient { //nolint:staticcheck // SA1019: deprecated, pending migration to client/tailscale/v2
 	if k.tsSrv == nil {
 		return nil
 	}
@@ -206,12 +206,12 @@ func (k *KraWeb) ListenAndServe(ctx context.Context) error {
 			}
 
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			fmt.Fprintf(w, "<html><body><h1>Hello, world!</h1>\n")
-			fmt.Fprintf(w, "<p>You are <b>%s</b> from <b>%s</b> (%s)</p>",
+			_, _ = fmt.Fprint(w, "<html><body><h1>Hello, world!</h1>\n")
+			_, _ = fmt.Fprintf(w, "<p>You are <b>%s</b> from <b>%s</b> (%s)</p>",
 				html.EscapeString(who.UserProfile.LoginName),
 				html.EscapeString(firstLabel(who.Node.ComputedName)),
 				r.RemoteAddr)
-			fmt.Fprintf(w, "</body></html>")
+			_, _ = fmt.Fprint(w, "</body></html>")
 		}))
 
 		k.tsmux.Handle(
