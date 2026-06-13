@@ -6,17 +6,24 @@ on:
   pull_request:
     branches: [main]
 
+# Every `run:` step executes inside `nix develop`, so tools (go, golangci-lint)
+# come straight from the flake devShell with no per-step prefix.
+defaults:
+  run:
+    shell: nix develop --command bash -e {0}
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
+      - name: Install Nix
+        uses: NixOS/nix-installer-action@main
+
+      - name: Setup Nix cache (hestia)
+        uses: Mic92/hestia/action@main
 
       - name: Build
         run: go build ./...
@@ -31,26 +38,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
+      - name: Install Nix
+        uses: NixOS/nix-installer-action@main
+
+      - name: Setup Nix cache (hestia)
+        uses: Mic92/hestia/action@main
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
+        run: golangci-lint run ./...
 
   nix-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: NixOS/nix-installer-action@main
+
+      - name: Setup Nix cache (hestia)
+        uses: Mic92/hestia/action@main
 
       - name: Nix build
         run: nix build
