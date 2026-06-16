@@ -123,7 +123,8 @@ func Bootstrap(meta PageMeta, props a.Props, children ...elem.Node) *elem.Elemen
 	}
 
 	if meta.Description != "" {
-		headChildren = append(headChildren,
+		headChildren = append(
+			headChildren,
 			elem.Meta(a.Props{
 				a.Name:    "description",
 				a.Content: meta.Description,
@@ -131,7 +132,8 @@ func Bootstrap(meta PageMeta, props a.Props, children ...elem.Node) *elem.Elemen
 		)
 	}
 
-	headChildren = append(headChildren,
+	headChildren = append(
+		headChildren,
 		elem.Meta(a.Props{
 			"property": "og:title",
 			a.Content:  formatTitle(meta.Title),
@@ -139,7 +141,8 @@ func Bootstrap(meta PageMeta, props a.Props, children ...elem.Node) *elem.Elemen
 	)
 
 	if meta.Description != "" {
-		headChildren = append(headChildren,
+		headChildren = append(
+			headChildren,
 			elem.Meta(a.Props{
 				"property": "og:description",
 				a.Content:  meta.Description,
@@ -149,7 +152,8 @@ func Bootstrap(meta PageMeta, props a.Props, children ...elem.Node) *elem.Elemen
 
 	if meta.Path != "" {
 		ogURL := siteURL + meta.Path
-		headChildren = append(headChildren,
+		headChildren = append(
+			headChildren,
 			elem.Meta(a.Props{
 				"property": "og:url",
 				a.Content:  ogURL,
@@ -158,18 +162,21 @@ func Bootstrap(meta PageMeta, props a.Props, children ...elem.Node) *elem.Elemen
 		)
 	}
 
-	headChildren = append(headChildren,
+	headChildren = append(
+		headChildren,
 		elem.Meta(a.Props{
 			"property": "og:type",
 			a.Content:  "website",
 		}),
 	)
 
-	content := elem.Html(a.Props{
-		a.Lang: "en",
-	},
+	content := elem.Html(
+		a.Props{
+			a.Lang: "en",
+		},
 		elem.Head(nil, headChildren...),
-		elem.Body(props,
+		elem.Body(
+			props,
 			children...,
 		),
 	)
@@ -179,13 +186,16 @@ func Bootstrap(meta PageMeta, props a.Props, children ...elem.Node) *elem.Elemen
 
 func PageBase(meta PageMeta, children ...elem.Node) *elem.Element {
 	main := append([]elem.Node{
-		elem.Header(nil,
+		elem.Header(
+			nil,
 			elem.H1(nil, elem.Text(formatTitle(meta.Title))),
 		),
 	}, children...)
-	return Bootstrap(meta,
+	return Bootstrap(
+		meta,
 		nil,
-		elem.Nav(nil,
+		elem.Nav(
+			nil,
 			elem.A(
 				a.Props{
 					a.Href: "/",
@@ -213,11 +223,14 @@ func PageBase(meta PageMeta, children ...elem.Node) *elem.Element {
 				elem.Text("resume ↗"),
 			),
 		),
-		elem.Main(nil,
+		elem.Main(
+			nil,
 			main...,
 		),
-		elem.Footer(nil,
-			elem.P(nil,
+		elem.Footer(
+			nil,
+			elem.P(
+				nil,
 				elem.Text(fmt.Sprintf("Copyright © %d - Kristoffer Dalby", time.Now().Year())),
 			),
 		),
@@ -232,13 +245,15 @@ func Home() *elem.Element {
 			Path:        "/",
 		},
 		Gravatar(400),
-		elem.P(nil,
+		elem.P(
+			nil,
 			elem.Text("Software engineer at "),
 			Alink("https://tailscale.com", "Tailscale"),
 			elem.Text(" and maintainer of "),
 			Alink("https://github.com/juanfont/headscale", "Headscale"),
 		),
-		elem.P(nil,
+		elem.P(
+			nil,
 			elem.Text("Travelling, bouldering, cooking, photography."),
 		),
 		LinkElem("https://github.com/kradalby", Github(48), a.Props{"aria-label": "GitHub"}),
@@ -263,7 +278,8 @@ func About() *elem.Element {
 				"I am Software engineer from Norway, currently living in Leiden, The Netherlands and slowly travelling the world.",
 			),
 		),
-		elem.P(nil,
+		elem.P(
+			nil,
 			elem.Text("I work as a Member of Technical Staff at "),
 			Alink("https://tailscale.com", "Tailscale"),
 			elem.Text(" where I work on both Tailscale and "),
@@ -292,7 +308,8 @@ func About() *elem.Element {
 			nil,
 			elem.Text("I have done some public speaking, here is a list of publicly available talks:"),
 		),
-		elem.Ul(nil,
+		elem.Ul(
+			nil,
 			elem.Li(
 				nil,
 				Alink(
@@ -371,10 +388,13 @@ func Salary() (*elem.Element, error) {
 			),
 		),
 
-		elem.Table(nil,
+		elem.Table(
+			nil,
 			elem.Raw("<caption>Salary history</caption>"),
-			elem.THead(nil,
-				elem.Tr(nil,
+			elem.THead(
+				nil,
+				elem.Tr(
+					nil,
 					elem.Th(nil, elem.Text("Title")),
 					elem.Th(nil, elem.Text("Start date")),
 					elem.Th(nil, elem.Text("End date")),
@@ -383,12 +403,14 @@ func Salary() (*elem.Element, error) {
 					elem.Th(nil, elem.Text("Note")),
 				),
 			),
-			elem.TBody(nil,
+			elem.TBody(
+				nil,
 				SalaryRows(salaries)...,
 			),
 		),
 		elem.P(nil, elem.Text("I aim to update this when typically change events happens like:")),
-		elem.Ul(nil,
+		elem.Ul(
+			nil,
 			elem.Li(nil, elem.Text("I leave a job")),
 			elem.Li(nil, elem.Text("My title or level changes")),
 			elem.Li(nil, elem.Text("I get a raise")),
@@ -406,7 +428,8 @@ func Salary() (*elem.Element, error) {
 
 func SalaryRows(items data.Salaries) []elem.Node {
 	return elem.TransformEach(items, func(sal data.Salary) elem.Node {
-		return elem.Tr(nil,
+		return elem.Tr(
+			nil,
 			elem.Td(nil, elem.Text(sal.Title)),
 			elem.Td(nil, elem.Text(sal.StartDate)),
 			elem.Td(nil, elem.Text(sal.EndDate)),

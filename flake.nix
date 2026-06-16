@@ -36,7 +36,7 @@
 
                 subPackages = [ "cmd/krapage" ];
 
-                vendorHash = "sha256-ChkPjkBCTagY2d+JQybDm3Lw3cTLURktWvolxe9xT+w=";
+                vendorHash = "sha256-KwXxBvfX4JyA42iDJlXaZeTI5iZFresePw5YUU/K9F4=";
               })
             { };
         };
@@ -54,7 +54,7 @@
           root = ./.;
           pname = "krapage";
           version = kraVersion;
-          vendorHash = "sha256-ChkPjkBCTagY2d+JQybDm3Lw3cTLURktWvolxe9xT+w=";
+          vendorHash = "sha256-KwXxBvfX4JyA42iDJlXaZeTI5iZFresePw5YUU/K9F4=";
           goPkg = pkgs.go_1_26;
           embedDirs = [ ./data ];
         };
@@ -100,7 +100,7 @@
               (writeShellScriptBin
                 "go-mod-update-all"
                 ''
-                  cat go.mod | ${pkgs.silver-searcher}/bin/ag "\t" | ${pkgs.silver-searcher}/bin/ag -v indirect | ${pkgs.gawk}/bin/awk '{print $1}' | ${pkgs.findutils}/bin/xargs go get -u
+                  cat go.mod | ${pkgs.ripgrep}/bin/rg "\t" | ${pkgs.ripgrep}/bin/rg -v indirect | ${pkgs.gawk}/bin/awk '{print $1}' | ${pkgs.findutils}/bin/xargs go get -u
                   go mod tidy
                 '')
             ]

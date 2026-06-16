@@ -63,7 +63,8 @@ func TestWithOptions(t *testing.T) {
 	customLogger := slog.Default()
 	customStdLogger := log.Default()
 
-	k := NewKraWeb("host", "", "localhost:0",
+	k := NewKraWeb(
+		"host", "", "localhost:0",
 		WithControlURL("https://control.example.com"),
 		WithVerbose(true),
 		WithLogger(customLogger),
