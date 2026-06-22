@@ -3,15 +3,16 @@
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixpkgs-unstable";
-    utils.url = "github:numtide/flake-utils";
+    flake-utils.url = "github:numtide/flake-utils";
     flake-checks.url = "github:kradalby/flake-checks";
     flake-checks.inputs.nixpkgs.follows = "nixpkgs";
+    flake-checks.inputs.flake-utils.follows = "flake-utils";
   };
 
   outputs =
     { self
     , nixpkgs
-    , utils
+    , flake-utils
     , flake-checks
     , ...
     }:
@@ -20,6 +21,7 @@
         if (self ? shortRev)
         then self.shortRev
         else "dev";
+      vendorHash = "sha256-KwXxBvfX4JyA42iDJlXaZeTI5iZFresePw5YUU/K9F4=";
     in
     {
       overlays.default = _: prev:
@@ -36,12 +38,12 @@
 
                 subPackages = [ "cmd/krapage" ];
 
-                vendorHash = "sha256-KwXxBvfX4JyA42iDJlXaZeTI5iZFresePw5YUU/K9F4=";
+                inherit vendorHash;
               })
             { };
         };
     }
-    // utils.lib.eachDefaultSystem
+    // flake-utils.lib.eachDefaultSystem
       (system:
       let
         pkgs = import nixpkgs {
@@ -54,7 +56,7 @@
           root = ./.;
           pname = "krapage";
           version = kraVersion;
-          vendorHash = "sha256-KwXxBvfX4JyA42iDJlXaZeTI5iZFresePw5YUU/K9F4=";
+          inherit vendorHash;
           goPkg = pkgs.go_1_26;
           embedDirs = [ ./data ];
         };
@@ -124,10 +126,10 @@
 
         # `nix run`
         apps = {
-          krapage = utils.lib.mkApp {
+          krapage = flake-utils.lib.mkApp {
             drv = pkgs.krapage;
           };
-          default = utils.lib.mkApp {
+          default = flake-utils.lib.mkApp {
             drv = pkgs.krapage;
           };
         };
