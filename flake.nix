@@ -27,20 +27,30 @@
       overlays.default = _: prev:
         let
           pkgs = nixpkgs.legacyPackages.${prev.stdenv.hostPlatform.system};
+          # Track the newest Go in nixpkgs rather than pinning a version.
+          # Bare `buildGoModule`/`pkgs.go` still resolve to the previous
+          # release, so the `Latest` attributes must be named explicitly.
+          buildGo = pkgs.buildGoLatestModule;
         in
         {
-          krapage = pkgs.callPackage
-            ({ buildGoModule }:
-              buildGoModule.override { go = pkgs.go_1_26; } {
-                pname = "krapage";
-                version = kraVersion;
-                src = pkgs.nix-gitignore.gitignoreSource [ ] ./.;
+          krapage = buildGo {
+            pname = "krapage";
+            version = kraVersion;
+            src = pkgs.nix-gitignore.gitignoreSource [ ] ./.;
 
-                subPackages = [ "cmd/krapage" ];
+            subPackages = [ "cmd/krapage" ];
 
-                inherit vendorHash;
-              })
-            { };
+            inherit vendorHash;
+          };
+
+          # Re-build the Go dev tools against the latest Go so everything
+          # agrees on a single Go version. golangci-lint and gopls already
+          # track it upstream, so they need no override.
+          gofumpt = prev.gofumpt.override { buildGoModule = buildGo; };
+          # goimports ships wrapped with a `go` on PATH. That `go` must be at
+          # least the go.mod directive, or GOTOOLCHAIN=auto tries to fetch a
+          # toolchain from inside the network-less treefmt sandbox.
+          gotools = prev.gotools.override { buildGoModule = buildGo; go = pkgs.go_latest; };
         };
     }
     // flake-utils.lib.eachDefaultSystem
@@ -57,13 +67,13 @@
           pname = "krapage";
           version = kraVersion;
           inherit vendorHash;
-          goPkg = pkgs.go_1_26;
+          goPkg = pkgs.go_latest;
           embedDirs = [ ./data ];
         };
         buildDeps = with pkgs; [
           git
           gnumake
-          go_1_26
+          go_latest
         ];
         devDeps = with pkgs;
           buildDeps
