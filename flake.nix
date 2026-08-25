@@ -10,21 +10,20 @@
   };
 
   outputs =
-    { self
-    , nixpkgs
-    , flake-utils
-    , flake-checks
-    , ...
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      flake-checks,
+      ...
     }:
     let
-      kraVersion =
-        if (self ? shortRev)
-        then self.shortRev
-        else "dev";
+      kraVersion = if (self ? shortRev) then self.shortRev else "dev";
       vendorHash = "sha256-pWIzde+lA2JRzWx5IJ3K4PdyIdH8U7eZcDSM1nVPfJM=";
     in
     {
-      overlays.default = _: prev:
+      overlays.default =
+        _: prev:
         let
           pkgs = nixpkgs.legacyPackages.${prev.stdenv.hostPlatform.system};
           # Track the newest Go in nixpkgs rather than pinning a version.
@@ -50,11 +49,14 @@
           # goimports ships wrapped with a `go` on PATH. That `go` must be at
           # least the go.mod directive, or GOTOOLCHAIN=auto tries to fetch a
           # toolchain from inside the network-less treefmt sandbox.
-          gotools = prev.gotools.override { buildGoModule = buildGo; go = pkgs.go_latest; };
+          gotools = prev.gotools.override {
+            buildGoModule = buildGo;
+            go = pkgs.go_latest;
+          };
         };
     }
-    // flake-utils.lib.eachDefaultSystem
-      (system:
+    // flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs {
           overlays = [ self.overlays.default ];
@@ -75,7 +77,8 @@
           gnumake
           go_latest
         ];
-        devDeps = with pkgs;
+        devDeps =
+          with pkgs;
           buildDeps
           ++ [
             golangci-lint
@@ -85,36 +88,29 @@
       {
         # `nix develop`
         devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs;
+          buildInputs =
+            with pkgs;
             [
-              (writeShellScriptBin
-                "krarun"
-                ''
-                  go run ./cmd/krapage --verbose
-                '')
-              (writeShellScriptBin
-                "kradev"
-                ''
-                  fd .go | entr -r krarun
-                '')
+              (writeShellScriptBin "krarun" ''
+                go run ./cmd/krapage --verbose
+              '')
+              (writeShellScriptBin "kradev" ''
+                fd .go | entr -r krarun
+              '')
 
-              (writeShellScriptBin
-                "nix-vendor-sri"
-                ''
-                  set -eu
-                  OUT=$(mktemp -d -t nar-hash-XXXXXX)
-                  rm -rf "$OUT"
-                  go mod vendor -o "$OUT"
-                  go run tailscale.com/cmd/nardump --sri "$OUT"
-                  rm -rf "$OUT"
-                '')
+              (writeShellScriptBin "nix-vendor-sri" ''
+                set -eu
+                OUT=$(mktemp -d -t nar-hash-XXXXXX)
+                rm -rf "$OUT"
+                go mod vendor -o "$OUT"
+                go run tailscale.com/cmd/nardump --sri "$OUT"
+                rm -rf "$OUT"
+              '')
 
-              (writeShellScriptBin
-                "go-mod-update-all"
-                ''
-                  cat go.mod | ${pkgs.ripgrep}/bin/rg "\t" | ${pkgs.ripgrep}/bin/rg -v indirect | ${pkgs.gawk}/bin/awk '{print $1}' | ${pkgs.findutils}/bin/xargs go get -u
-                  go mod tidy
-                '')
+              (writeShellScriptBin "go-mod-update-all" ''
+                cat go.mod | ${pkgs.ripgrep}/bin/rg "\t" | ${pkgs.ripgrep}/bin/rg -v indirect | ${pkgs.gawk}/bin/awk '{print $1}' | ${pkgs.findutils}/bin/xargs go get -u
+                go mod tidy
+              '')
             ]
             ++ devDeps;
         };
@@ -143,13 +139,15 @@
             drv = pkgs.krapage;
           };
         };
-      })
+      }
+    )
     // {
       nixosModules.default =
-        { pkgs
-        , lib
-        , config
-        , ...
+        {
+          pkgs,
+          lib,
+          config,
+          ...
         }:
         let
           cfg = config.services.krapage;
@@ -211,12 +209,11 @@
               enable = true;
               script =
                 let
-                  args =
-                    [
-                      "--ts-key-path ${cfg.tailscaleKeyPath}"
-                      "--listen-addr localhost:${toString cfg.localhostPort}"
-                    ]
-                    ++ lib.optionals cfg.verbose [ "--verbose" ];
+                  args = [
+                    "--ts-key-path ${cfg.tailscaleKeyPath}"
+                    "--listen-addr localhost:${toString cfg.localhostPort}"
+                  ]
+                  ++ lib.optionals cfg.verbose [ "--verbose" ];
                 in
                 ''
                   ${cfg.package}/bin/krapage ${lib.concatStringsSep " " args}
