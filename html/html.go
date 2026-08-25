@@ -3,7 +3,9 @@ package html
 import (
 	"fmt"
 	"html"
-	"sort"
+	"maps"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,15 +22,10 @@ const (
 
 // renderAttrs renders HTML attributes from a Props map with proper escaping.
 func renderAttrs(props a.Props) string {
-	// Sort keys for deterministic output
-	keys := make([]string, 0, len(props))
-	for k := range props {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
 	var b strings.Builder
-	for _, key := range keys {
+
+	// Keys are sorted so the rendered output is deterministic.
+	for _, key := range slices.Sorted(maps.Keys(props)) {
 		fmt.Fprintf(&b, ` %s="%s"`, key, html.EscapeString(props[key]))
 	}
 
@@ -39,14 +36,14 @@ func renderAttrs(props a.Props) string {
 func Svg(props a.Props, children ...elem.Node) elem.Node {
 	attrs := renderAttrs(props)
 
-	childrenHTML := ""
+	var childrenHTML strings.Builder
 	for _, child := range children {
 		if child != nil {
-			childrenHTML += child.Render()
+			childrenHTML.WriteString(child.Render())
 		}
 	}
 
-	return elem.Raw(fmt.Sprintf(`<svg%s>%s</svg>`, attrs, childrenHTML))
+	return elem.Raw(fmt.Sprintf(`<svg%s>%s</svg>`, attrs, childrenHTML.String()))
 }
 
 func Path(props a.Props) elem.Node {
@@ -59,8 +56,8 @@ func Path(props a.Props) elem.Node {
 func SvgIcon(size int, pathData string) elem.Node {
 	return Svg(
 		a.Props{
-			"height":  fmt.Sprintf("%d", size),
-			"width":   fmt.Sprintf("%d", size),
+			"height":  strconv.Itoa(size),
+			"width":   strconv.Itoa(size),
 			"viewBox": "0 0 24 24",
 			"xmlns":   "http://www.w3.org/2000/svg",
 			"x":       "0px",
@@ -79,9 +76,7 @@ func Alink(href, text string) *elem.Element {
 func LinkElem(href string, element elem.Node, extraProps ...a.Props) *elem.Element {
 	props := a.Props{a.Href: href}
 	for _, extra := range extraProps {
-		for k, v := range extra {
-			props[k] = v
-		}
+		maps.Copy(props, extra)
 	}
 
 	return elem.A(
