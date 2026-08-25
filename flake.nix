@@ -21,7 +21,7 @@
         if (self ? shortRev)
         then self.shortRev
         else "dev";
-      vendorHash = "sha256-KwXxBvfX4JyA42iDJlXaZeTI5iZFresePw5YUU/K9F4=";
+      vendorHash = "sha256-pWIzde+lA2JRzWx5IJ3K4PdyIdH8U7eZcDSM1nVPfJM=";
     in
     {
       overlays.default = _: prev:
