@@ -131,14 +131,17 @@
         };
 
         # `nix run`
-        apps = {
-          krapage = flake-utils.lib.mkApp {
-            drv = pkgs.krapage;
+        apps =
+          let
+            # mkApp drops meta, and `nix flake check` warns on apps without it.
+            krapage = flake-utils.lib.mkApp { drv = pkgs.krapage; } // {
+              meta.description = "Run the krapage web server";
+            };
+          in
+          {
+            inherit krapage;
+            default = krapage;
           };
-          default = flake-utils.lib.mkApp {
-            drv = pkgs.krapage;
-          };
-        };
       }
     )
     // {
