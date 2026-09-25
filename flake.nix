@@ -19,7 +19,7 @@
     }:
     let
       kraVersion = if (self ? shortRev) then self.shortRev else "dev";
-      vendorHash = "sha256-b9+peBfDlwu35HdlY8JpWdmetSGTRFhZQruS3pkHgbw=";
+      vendorHash = "sha256-GYCAUM3+j72swkJSihiHDFz8T93OqvxyWvyahetL32U=";
     in
     {
       overlays.default =
