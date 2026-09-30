@@ -1,11 +1,15 @@
 package web
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestFirstLabel(t *testing.T) {
@@ -30,8 +34,19 @@ func TestFirstLabel(t *testing.T) {
 	}
 }
 
-func TestNewKraWebDefaults(t *testing.T) {
-	k := NewKraWeb("testhost", "/tmp/key", "localhost:0")
+func mustNewServer(t *testing.T, cfg ServerConfig, opts ...Option) *KraWeb {
+	t.Helper()
+
+	k, err := NewServer(cfg, opts...)
+	if err != nil {
+		t.Fatalf("NewServer() error = %v", err)
+	}
+
+	return k
+}
+
+func TestNewServerDefaults(t *testing.T) {
+	k := mustNewServer(t, ServerConfig{Hostname: "testhost", AuthKeyPath: "/tmp/key", LocalAddr: "localhost:0"})
 
 	if k.hostname != "testhost" {
 		t.Errorf("hostname = %q, want %q", k.hostname, "testhost")
@@ -63,8 +78,8 @@ func TestWithOptions(t *testing.T) {
 	customLogger := slog.Default()
 	customStdLogger := log.Default()
 
-	k := NewKraWeb(
-		"host", "", "localhost:0",
+	k := mustNewServer(t,
+		ServerConfig{Hostname: "host", LocalAddr: "localhost:0"},
 		WithControlURL("https://control.example.com"),
 		WithVerbose(true),
 		WithLogger(customLogger),
@@ -98,7 +113,7 @@ func TestWithOptions(t *testing.T) {
 }
 
 func TestHandleRegistersOnBothMuxes(t *testing.T) {
-	k := NewKraWeb("host", "", "localhost:0")
+	k := mustNewServer(t, ServerConfig{Hostname: "host", LocalAddr: "localhost:0"})
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -123,7 +138,7 @@ func TestHandleRegistersOnBothMuxes(t *testing.T) {
 }
 
 func TestHandleTSOnlyRegistersOnlyOnTSMux(t *testing.T) {
-	k := NewKraWeb("host", "", "localhost:0")
+	k := mustNewServer(t, ServerConfig{Hostname: "host", LocalAddr: "localhost:0"})
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -208,7 +223,7 @@ func TestNewServerValidation(t *testing.T) {
 }
 
 func TestDebugHandlerWithTS(t *testing.T) {
-	k := NewKraWeb("host", "", "localhost:0", WithTailscale(true))
+	k := mustNewServer(t, ServerConfig{Hostname: "host", LocalAddr: "localhost:0", EnableTailscale: true})
 	dh := k.DebugHandler()
 	if dh == nil {
 		t.Error("DebugHandler() should not return nil when TS is enabled")
@@ -216,9 +231,118 @@ func TestDebugHandlerWithTS(t *testing.T) {
 }
 
 func TestDebugHandlerWithoutTS(t *testing.T) {
-	k := NewKraWeb("host", "", "localhost:0")
+	k := mustNewServer(t, ServerConfig{Hostname: "host", LocalAddr: "localhost:0"})
 	dh := k.DebugHandler()
 	if dh != nil {
 		t.Error("DebugHandler() should return nil when TS is disabled")
+	}
+}
+
+func TestNewServerConfiguresTailscale(t *testing.T) {
+	keyPath := filepath.Join(t.TempDir(), "key")
+	if err := os.WriteFile(keyPath, []byte("  tskey-auth-file\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name    string
+		cfg     ServerConfig
+		opts    []Option
+		wantKey string
+		wantErr bool
+	}{
+		{
+			name:    "key from config",
+			cfg:     ServerConfig{AuthKey: " tskey-auth-cfg "},
+			wantKey: "tskey-auth-cfg",
+		},
+		{
+			name:    "key from file",
+			cfg:     ServerConfig{AuthKeyPath: keyPath},
+			wantKey: "tskey-auth-file",
+		},
+		{
+			name:    "key beats file",
+			cfg:     ServerConfig{AuthKey: "tskey-auth-cfg", AuthKeyPath: keyPath},
+			wantKey: "tskey-auth-cfg",
+		},
+		{
+			name:    "option beats config",
+			cfg:     ServerConfig{AuthKey: "tskey-auth-cfg"},
+			opts:    []Option{WithAuthKey("tskey-auth-opt")},
+			wantKey: "tskey-auth-opt",
+		},
+		{
+			name:    "missing key file",
+			cfg:     ServerConfig{AuthKeyPath: filepath.Join(t.TempDir(), "nope")},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.cfg.Hostname = "host"
+			tt.cfg.LocalAddr = "localhost:0"
+			tt.cfg.EnableTailscale = true
+
+			k, err := NewServer(tt.cfg, tt.opts...)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("NewServer() error = nil, want error")
+				}
+
+				return
+			}
+			if err != nil {
+				t.Fatalf("NewServer() error = %v", err)
+			}
+
+			// tsnet reads its config once, on first Start or LocalClient,
+			// so it must be complete before NewServer returns.
+			if k.tsSrv.AuthKey != tt.wantKey {
+				t.Errorf("tsSrv.AuthKey = %q, want %q", k.tsSrv.AuthKey, tt.wantKey)
+			}
+			if k.tsSrv.Logf == nil {
+				t.Error("tsSrv.Logf is nil")
+			}
+
+			for _, path := range []string{"/metrics", "/who", "/quitquitquit"} {
+				req := httptest.NewRequest(http.MethodGet, path, nil)
+				if _, pattern := k.tsmux.Handler(req); pattern != path {
+					t.Errorf("tsmux pattern for %s = %q, want %q", path, pattern, path)
+				}
+			}
+		})
+	}
+}
+
+// Mirrors hvor, which grabs the LocalClient (starting tsnet) before serving.
+func TestListenAndServeAfterLocalClient(t *testing.T) {
+	k, err := NewServer(
+		ServerConfig{
+			Hostname:        "kra-test",
+			LocalAddr:       "127.0.0.1:0",
+			AuthKey:         "tskey-auth-test",
+			EnableTailscale: true,
+		},
+		WithVerbose(true),
+		WithTailscaleStateDir(t.TempDir()),
+		WithControlURL("http://127.0.0.1:1"),
+	)
+	if err != nil {
+		t.Fatalf("NewServer() error = %v", err)
+	}
+	// Runs before TempDir removal; waits out the async Close in ListenAndServe.
+	t.Cleanup(func() { _ = k.tsSrv.Close() })
+
+	if k.TailscaleLocalClient() == nil {
+		t.Fatal("TailscaleLocalClient() = nil")
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	if err := k.ListenAndServe(ctx); err != nil {
+		t.Fatalf("ListenAndServe() error = %v", err)
 	}
 }
