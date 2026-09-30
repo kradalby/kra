@@ -86,49 +86,121 @@ func WithAuthKey(key string) Option {
 	}
 }
 
-func NewKraWeb(
-	hostname string,
-	tsKeyPath string,
-	localAddr string,
-	opts ...Option,
-) *KraWeb {
+// NewServer builds a fully configured KraWeb. tsnet reads its config once, on
+// first Start or LocalClient, so everything it needs is settled here.
+func NewServer(cfg ServerConfig, opts ...Option) (*KraWeb, error) {
+	if cfg.LocalAddr == "" {
+		return nil, errors.New("local listen address is required")
+	}
+
 	k := &KraWeb{
-		hostname:   hostname,
-		tsKeyPath:  tsKeyPath,
-		localAddr:  localAddr,
-		controlURL: "",
-		verbose:    false,
-		logger:     slog.Default(),
-		stdLogger:  log.Default(),
-		enableTS:   false,
+		hostname:  cfg.Hostname,
+		tsKeyPath: cfg.AuthKeyPath,
+		authKey:   cfg.AuthKey,
+		localAddr: cfg.LocalAddr,
+		logger:    slog.Default(),
+		stdLogger: log.Default(),
+		enableTS:  cfg.EnableTailscale,
+		mux:       http.NewServeMux(),
+		tsmux:     http.NewServeMux(),
 	}
 
 	for _, opt := range opts {
 		opt(k)
 	}
 
-	k.mux = http.NewServeMux()
-	k.tsmux = http.NewServeMux()
+	if !k.enableTS {
+		return k, nil
+	}
 
-	if k.enableTS {
-		debugHandler := tsweb.Debugger(k.tsmux)
-		k.debugHandler = debugHandler
+	if k.hostname == "" {
+		return nil, errors.New("tailscale hostname is required when enabling tailscale")
+	}
 
-		if err := statsviz.Register(k.tsmux); err == nil {
-			k.debugHandler.URL("/debug/statsviz", "Statsviz (visualise go metrics)")
-		} else {
-			k.logger.Warn("failed to register statsviz", slog.Any("error", err))
-		}
+	authKey, err := k.resolveAuthKey()
+	if err != nil {
+		return nil, err
+	}
 
-		k.tsSrv = &tsnet.Server{
-			Hostname:   k.hostname,
-			Logf:       func(format string, args ...any) {},
-			ControlURL: k.controlURL,
-			Dir:        k.tsStateDir,
+	logf := func(format string, args ...any) {}
+	if k.verbose && k.logger != nil {
+		logger := k.logger
+		logf = func(format string, args ...any) {
+			logger.Info(fmt.Sprintf(format, args...))
 		}
 	}
 
-	return k
+	k.tsSrv = &tsnet.Server{
+		Hostname:   k.hostname,
+		AuthKey:    authKey,
+		Logf:       logf,
+		ControlURL: k.controlURL,
+		Dir:        k.tsStateDir,
+	}
+
+	k.debugHandler = tsweb.Debugger(k.tsmux)
+
+	if err := statsviz.Register(k.tsmux); err == nil {
+		k.debugHandler.URL("/debug/statsviz", "Statsviz (visualise go metrics)")
+	} else {
+		k.logger.Warn("failed to register statsviz", slog.Any("error", err))
+	}
+
+	k.tsmux.Handle("/metrics", promhttp.Handler())
+	k.tsmux.Handle("/who", http.HandlerFunc(k.handleWho))
+	k.tsmux.Handle("/quitquitquit", http.HandlerFunc(handleQuit))
+
+	return k, nil
+}
+
+func (k *KraWeb) resolveAuthKey() (string, error) {
+	switch {
+	case k.authKey != "":
+		return strings.TrimSpace(k.authKey), nil
+	case k.tsKeyPath != "":
+		key, err := os.ReadFile(k.tsKeyPath)
+		if err != nil {
+			return "", fmt.Errorf("reading tailscale auth key: %w", err)
+		}
+
+		return strings.TrimSpace(string(key)), nil
+	default:
+		return "", nil
+	}
+}
+
+func (k *KraWeb) handleWho(w http.ResponseWriter, r *http.Request) {
+	// Only reachable over tsnet, so the server is already started.
+	localClient, err := k.tsSrv.LocalClient()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	who, err := localClient.WhoIs(r.Context(), r.RemoteAddr)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = fmt.Fprint(w, "<html><body><h1>Hello, world!</h1>\n")
+	_, _ = fmt.Fprintf(w, "<p>You are <b>%s</b> from <b>%s</b> (%s)</p>",
+		html.EscapeString(who.UserProfile.LoginName),
+		html.EscapeString(firstLabel(who.Node.ComputedName)),
+		r.RemoteAddr)
+	_, _ = fmt.Fprint(w, "</body></html>")
+}
+
+func handleQuit(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	os.Exit(0)
 }
 
 // DebugHandler returns the handler for the debug server.
@@ -169,24 +241,6 @@ func (k *KraWeb) ListenAndServe(ctx context.Context) error {
 	logger := k.logger
 
 	if k.enableTS {
-		switch {
-		case k.authKey != "":
-			k.tsSrv.AuthKey = strings.TrimSpace(k.authKey)
-		case k.tsKeyPath != "":
-			key, err := os.ReadFile(k.tsKeyPath)
-			if err != nil {
-				return err
-			}
-
-			k.tsSrv.AuthKey = strings.TrimSpace(string(key))
-		}
-
-		if k.verbose && logger != nil {
-			k.tsSrv.Logf = func(format string, args ...any) {
-				logger.Info(fmt.Sprintf(format, args...))
-			}
-		}
-
 		if err := k.tsSrv.Start(); err != nil {
 			return err
 		}
@@ -195,36 +249,6 @@ func (k *KraWeb) ListenAndServe(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-
-		k.tsmux.Handle("/metrics", promhttp.Handler())
-		k.tsmux.Handle("/who", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			who, err := localClient.WhoIs(r.Context(), r.RemoteAddr)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-
-				return
-			}
-
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = fmt.Fprint(w, "<html><body><h1>Hello, world!</h1>\n")
-			_, _ = fmt.Fprintf(w, "<p>You are <b>%s</b> from <b>%s</b> (%s)</p>",
-				html.EscapeString(who.UserProfile.LoginName),
-				html.EscapeString(firstLabel(who.Node.ComputedName)),
-				r.RemoteAddr)
-			_, _ = fmt.Fprint(w, "</body></html>")
-		}))
-
-		k.tsmux.Handle(
-			"/quitquitquit",
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != http.MethodPost {
-					http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-					return
-				}
-				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-				os.Exit(0)
-			}),
-		)
 
 		tshttpSrv := &http.Server{
 			Handler:      k.tsmux,
